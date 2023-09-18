@@ -4,10 +4,24 @@ library(pins)
 library(plumber)
 library(rapidoc)
 library(vetiver)
-b <- board_url(c(chicago_model = "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspections-result-pin/"))
-v <- vetiver_pin_read(b, "chicago_model")
+
+# Packages needed to generate model predictions
+if (FALSE) {
+    library(parsnip)
+    library(ranger)
+    library(recipes)
+    library(workflows)
+}
+b <- board_connect()
+v <- vetiver_pin_read(b, "vetiver2023/rf-inspections-metadata", version = "5")
+
+handler_weekday <- function(req) {
+  wday(req$body$inspection_date, label = TRUE)
+}
 
 #* @plumber
 function(pr) {
-    pr %>% vetiver_api(v)
+  pr |>  
+    vetiver_api(v) |> 
+    pr_post(path = "/weekday", handler = handler_weekday)
 }

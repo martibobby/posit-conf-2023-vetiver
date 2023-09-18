@@ -5,6 +5,11 @@ format: html
 ---
 
 ## Data for modeling & data for monitoring 🤝
+### Types of drift:
+- Data Drift - changes with the input data (ie. there are more observations over time). If input distribution changes, then outputs will drift as well
+- Concept Drift - relationship between the input data changes, then we trained out model incorrectly and need to retrain
+
+If they added new risk levels (instead of low, medium, high to A-F) what would that drift be?
 
 ```{r}
 library(arrow)
@@ -19,26 +24,49 @@ inspections_new <- read_parquet(path2)
 Compare the modeling and monitoring datasets:
 
 ```{r}
-## make a plot or table
+library(ggplot2)
+## The type of restaurants
+combined <- bind_rows(
+  inspections |> mutate(monitor = "Training/testing"),
+  inspections_new |> mutate(monitor = "Monitoring")
+) 
+
+# bias to inspecting more high risk
+# 
+
+combined |> 
+  count(monitor, facility_type, risk) |>
+  group_by(monitor) |> 
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(facility_type, proportion, fill = monitor)) +
+  geom_col(alpha = 0.8, position = "dodge") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(fill = NULL, y = "% of establishments", x = NULL)
+
 ```
 
 ## Monitor metrics over time ⏳
 
+# do we monitor the statistical efficacy of our model?
+
 ```{r}
 library(vetiver)
 library(tidymodels)
-url <- "https://colorado.posit.co/rsc/chicago-inspections-rstats/predict"
+#url <- "https://colorado.posit.co/rsc/chicago-inspections-rstats/predict"
+url <- "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspection-rf-api/predict"
 endpoint <- vetiver_endpoint(url)
+
+augmentView <- augment(endpoint, new_data = inspections_new) 
 
 metrics_df <-
   augment(endpoint, new_data = inspections_new) |>
   mutate(.pred_class = as.factor(.pred_class)) |> 
   vetiver_compute_metrics(
     inspection_date, 
-    ___, 
+    "week", 
     results, 
     .pred_class,
-    metric_set = metric_set(___)
+    metric_set = metric_set(accuracy, kap, sensitivity) #sentitivity is the same as recall
   )
 
 metrics_df
@@ -57,12 +85,26 @@ What proportion of failed inspections were predicted to fail?
 ```{r}
 augment(endpoint, inspections_new) |> 
   mutate(.pred_class = as.factor(.pred_class)) |> 
-  group_by(___) |> 
-  ___(results, .pred_class)
+  group_by(facility_type) |> 
+  sensitivity(results, .pred_class)
+# THIS LOOKS AWFUL!!!
 ```
 
 ```{r}
 ## make a visualization
+bind_rows(
+  inspections |> mutate(monitor = "Training/testing"),
+  inspections_new |> mutate(monitor = "Monitoring")
+) |> 
+  group_by(monitor, 
+           inspection_date = lubridate::floor_date(inspection_date, unit = "month")) |> 
+  summarise(results = mean(results == "PASS")) |> 
+  ggplot(aes(inspection_date, results, color = monitor)) +
+  geom_line(alpha = 0.8, linewidth = 1.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(y = "% of inspections that have a PASS result", 
+       x = NULL, 
+       color = NULL)
 ```
 
 ## Create a monitoring dashboard or report 📊

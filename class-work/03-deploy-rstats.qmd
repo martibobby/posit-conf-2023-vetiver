@@ -101,7 +101,7 @@ jsonlite::fromJSON(r) |>
 Write a `plumber.R` file:
 
 ```{r}
-vetiver_write_plumber(board, ___)
+vetiver_write_plumber(board, "vetiver2023/rf-inspections-metadata")
 ```
 
 Open the file and run it locally; use the "Run API" button in RStudio.

@@ -12,6 +12,7 @@ output:
       bootswatch: cosmo
     display_pins: true
 ---
+workshop_model = "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspection-rf-api/predict"
 
 ```{r setup, include = FALSE}
 library(flexdashboard)
