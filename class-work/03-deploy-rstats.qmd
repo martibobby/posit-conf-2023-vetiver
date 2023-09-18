@@ -10,6 +10,7 @@ format: html
 library(tidyverse)
 library(tidymodels)
 library(arrow)
+library(vetiver)
 path <- here::here("data", "inspections.parquet")
 inspections <- read_parquet(path)
 
@@ -27,7 +28,7 @@ inspection_fit <-
   workflow(inspection_rec, rand_forest(mode = "classification", trees = 1e3)) |> 
   fit(data = inspect_train)
 
-v <- vetiver_model(___, ___)
+v <- vetiver_model(inspection_fit, model_name = "rf-inspections-metadata")
 v
 ```
 
@@ -42,7 +43,7 @@ Compute metrics for your model:
 ```{r}
 inspect_metric_set <- metric_set(accuracy, mn_log_loss, f_meas)
 inspect_metrics <-
-  augment(inspection_fit, new_data = ___) |>
+  augment(inspection_fit, new_data = inspect_test) |>
   inspect_metric_set(truth = results, estimate = .pred_class, .pred_FAIL)
 
 inspect_metrics
@@ -53,9 +54,9 @@ Store these metrics as vetiver metadata:
 ```{r}
 library(vetiver)
 v <- vetiver_model(
-  ___, 
-  ___, 
-  metadata = list(metrics = ___)
+  inspection_fit, 
+  "rf-inspections-metadata", 
+  metadata = list(metrics = inspect_metrics)
 )
 ```
 
@@ -63,8 +64,8 @@ Write a new version of your pin:
 
 ```{r}
 library(pins)
-board <- ___
-board |> ___
+board <- board_rsconnect()
+board |> vetiver_pin_write(v)
 ```
 
 Get your metrics metadata:
@@ -72,7 +73,7 @@ Get your metrics metadata:
 ```{r}
 extracted_metrics <- 
   board |> 
-  pin_meta(___) |> 
+  pin_meta("vetiver2023/rf-inspections-metadata") |> 
   pluck("user", "metrics") |> 
   as_tibble()
 
@@ -82,9 +83,15 @@ extracted_metrics
 If you have time, redeploy your model and then get **your neighbor's** metrics metadata by calling the `/metadata` endpoint of their model:
 
 ```{r}
-url <- ___
+# redeploy metadata
+#vetiver_deploy_rsconnect(board,  "vetiver2023/rf-inspections-metadata")
+
+url <- "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspection-rf-api/metadata"
+#url <- "https://quartz-shrimp.d01bf.fleeting.rstd.io/rsconnect/vetiver_rf_jrose/metadata
+# statistical baselines, etc...
+# repo, commit hash
 r <- httr::content(httr::GET(url), as = "text", encoding = "UTF-8")
-jsonlite::fromJSON(___) |> 
+jsonlite::fromJSON(r) |> 
   pluck("user", "metrics") |> 
   as_tibble()
 ```

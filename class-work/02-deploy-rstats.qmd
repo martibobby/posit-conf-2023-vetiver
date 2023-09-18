@@ -36,8 +36,9 @@ Store your model on Posit Connect:
 library(vetiver)
 library(pins)
 
-v <- vetiver_model(___, ___)
-board <- ___
+v <- vetiver_model(inspection_fit, 
+                   model_name = "inspections-result-rstats")
+board <- board_connect()
 board |> vetiver_pin_write(v)
 ```
 
@@ -51,14 +52,14 @@ Open the Model Card template in RStudio by choosing "File" ➡️ "New File" ➡
 library(plumber)
 
 pr() |>
-  ___(v) |>
+  vetiver_api(v) |>
   pr_run()
 ```
 
 ## Deploy to Posit Connect 🚀
 
 ```{r}
-vetiver_deploy_rsconnect(board, ___)
+vetiver_deploy_rsconnect(board, "vetiver2023/inspections-result-rstats")
 ```
 
 ## Call your new API endpoints ☎️
@@ -66,26 +67,38 @@ vetiver_deploy_rsconnect(board, ___)
 Return predictions from your model API:
 
 ```{r}
-url <- ___
-endpoint <- ___(url)
-predict(___, slice_sample(inspect_test, n = 10))
+url <- "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspection-rf-api/predict"
+endpoint <- vetiver_endpoint(url)
+predict(endpoint, slice_sample(inspect_test, n = 10))
 ```
 
 Optional: try `/metadata` or `/ping` here:
 
 ```{r}
-url <- ___
-r <- httr::GET(url)
-r <- httr::content(r, as = "text", encoding = "UTF-8")
-jsonlite::fromJSON(r)
+url <- "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspection-rf-api/"
+req <- httr2::request(url) 
+
+ping <- req |>
+  httr2::req_url_path_append("/ping") %>%
+  httr2::req_perform() %>%
+  httr2::resp_body_json() %>%
+  tibble::as_tibble()
+
+metadata <- req %>%
+  httr2::req_url_path_append("/metadata") %>%
+  httr2::req_perform() %>%
+  httr2::resp_body_json() 
+
+print(ping)
+reactable::reactable(enframe(metadata))
 ```
 
 Return predictions from **your neighbor's** model API:
 
 ```{r}
-url <- ___
-endpoint <- ___(url)
-predict(___, slice_sample(inspect_test, n = 10))
+url <- "https://quartz-shrimp.d01bf.fleeting.rstd.io/rsconnect/vetiver_rf_jrose/predict"
+endpoint <- vetiver_endpoint(url)
+predict(endpoint, slice_sample(inspect_test, n = 10))
 ```
 
 
@@ -94,10 +107,13 @@ predict(___, slice_sample(inspect_test, n = 10))
 For our R model:
 
 ```{r}
-url <- "https://colorado.posit.co/rsc/chicago-inspections-rstats/prototype/"
-r <- ___
-prototype <- httr::content(r, as = "text", encoding = "UTF-8")
-jsonlite::fromJSON(___)
+url <- "https://quartz-shrimp.d01bf.fleeting.rstd.io/rsconnect/vetiver_rf_jrose/"
+req <- httr2::request(url) %>%
+  httr2::req_url_path_append("prototype")
+prototype <- req |>
+  httr2::req_perform() |>
+  httr2::resp_body_json()
+  
 ```
 
 For our Python model:

@@ -10,7 +10,7 @@ format: html
 library(vetiver)
 library(pins)
 board <- board_url(c(
-  chicago_model = "https://colorado.posit.co/rsc/chicago-rstats-model-pin/"
+  chicago_model = url <- "https://spectral-bullfinch.d01bf.fleeting.rstd.io/rsconnect/inspections-result-pin/"
 ))
 v <- vetiver_pin_read(board, "chicago_model")
 v
@@ -19,7 +19,10 @@ v
 ## Create artifacts to run a Dockerfile
 
 ```{r}
-vetiver_prepare_docker(board, "chicago_model")
+vetiver_prepare_docker(board,
+                       #path = "docker",
+                       #port = 8080,
+                       "chicago_model")
 ```
 
 What outputs are created?
@@ -52,6 +55,10 @@ new_data <- tibble::tibble(
   total_violations = 10 + c(0, 1e2, 1e3),
   inspection_date = lubridate::today() - c(0, 1e3, 1e4)
 )
-
-predict(endpoint, new_data)
+print(new_data)
+new_data_predictions <- predict(endpoint, new_data)
+new_data %>%
+  bind_cols(new_data_predictions) %>%
+  relocate(.pred_class) %>%
+  rename(model_prediction = .pred_class)
 ```

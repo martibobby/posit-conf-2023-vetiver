@@ -22,7 +22,39 @@ inspections |>
 ```
 
 ```{r}
-## more EDA here
+## What’s the distribution of the outcome results?
+dist_results <- inspections |>
+  count(results)
+
+## What’s the distribution of the numeric variable total_violations?
+dist_total_violations <- inspections |>
+  count(total_violations)
+
+## How do results differ across facility type?
+dist_results_by_facility <- inspections |>
+  group_by(facility_type) |>
+  count(results)
+
+reactable(dist_results)
+reactable(dist_total_violations)
+reactable(dist_results_by_facility,groupBy = c("facility_type"), defaultExpanded = TRUE)
+
+
+```
+
+## Viewing some EDA
+Let's see what this looks like:
+```{r dist-visual}
+# inspections |>
+#   group_by(lubridate::year(inspection_date)) |> 
+#   
+#   ggplot(aes(inspectoin_date, results))
+
+inspections |>
+  ggplot(aes(inspection_date, total_violations, z = as.integer(results) - 1)) +
+  stat_summary_hex(alpha = 0.7) +
+  scale_fill_viridis_c(labels = scales::percent) +
+  labs(fill = "% passed", x = NULL)
 ```
 
 ## Build a model 🔧
@@ -48,32 +80,31 @@ inspection_rec <-
 inspection_fit <-
   workflow(inspection_rec, logistic_reg()) |> 
   fit(data = inspect_train)
+
+tidy(inspection_fit)
 ```
 
 ## Create a deployable model object 🏺
 
 ```{r}
 library(vetiver)
-v <- vetiver_model(___, ___)
+v <- vetiver_model(inspection_fit,
+                   model_name = "inspections-result-rstats") #description = "A glm classification model " 
 v
 ```
-
-```{r}
-## create a vetiver model with a custom description
-```
-
 ## Version your model 📌
 
 ```{r}
 library(pins)
 
-board <- ___
-board |> ___(v)
+# setup temporary board
+board <- board_temp()
+board |> vetiver_pin_write(v)
 ```
 
 ```{r}
 ## retrieve your model metadata
-board |> pin_meta(___)
+board |> pin_meta("inspections-result-rstats")
 ```
 
 ## Publish your model on Posit Connect 🚀
@@ -82,8 +113,8 @@ Set up publishing to Connect from RStudio: <https://docs.posit.co/connect/user/p
 
 ```{r}
 ## now write your model pin to Posit Connect
-board <- ___
-board |> ___(v)
+board <- board_connect()
+board |> vetiver_pin_write(v)
 ```
 
 Visit your pin's homepage on Connect.
@@ -93,9 +124,13 @@ Visit your pin's homepage on Connect.
 Train your model with a new algorithm:
 
 ```{r}
-inspection_fit <-
-  workflow(inspection_rec, ___) |> 
-  fit(data = inspect_train)
+#boost_tree(engine = "xgboost", mode = "unknown")
+# xgModel <- boost_tree() %>%
+#   set_engine("xgboost") %>%
+#   set_mode(mode = "regression")
+# inspection_fit <-
+#   workflow(inspection_rec, xgModel) |> 
+#   fit(data = inspect_train)
 ```
 
 Store this new model as a new version of the same pin:
